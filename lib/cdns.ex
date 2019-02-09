@@ -9,14 +9,14 @@ defmodule CDNS do
     with {:ok, socket} <- :gen_udp.open(0, [:binary, {:active, false}]),
          {id, data} <- query(host),
          :ok <- :gen_udp.send(socket, @dns_server, 53, data),
-         {:ok, ttl, ip} <- read_reply(socket, id) do
-      {:ok, ttl, ip}
+         {:ok, data} <- read_reply(socket, id) do
+      {:ok, data}
     else
       {:error, reason} ->
         {:error, reason}
 
       {:error, reason, desc} ->
-          {:error, reason, desc}
+        {:error, reason, desc}
 
       _ ->
         {:error, :generic}
@@ -81,29 +81,53 @@ defmodule CDNS do
 
   ### PARSE REPLY ###
 
-  def parse_query_reply(id, <<0xAA::8, id::8, 1::1, _::11, 0::4-integer, _qdcount::16, _::48, rest::binary>>) do
+  def parse_query_reply(
+        id,
+        <<
+          0xAA::8,
+          id::8,
+          1::1,
+          _::11,
+          0::4-integer,
+          _qdcount::16,
+          ancount::16,
+          _nscount::16,
+          _arcount::16,
+          rest::binary
+        >>
+      ) do
+    IO.puts("reply #{ancount}")
+
     rest
     |> discard_request()
-    |> parse_reply_content()
+    |> parse_reply_content(ancount)
   end
 
   def parse_query_reply(id, <<0xAA::8, id::8, 1::1, _::11, rcode::4-integer, _rest::binary>>) do
     {:error, :bad_query, "rcode: #{rcode}"}
   end
 
-  def parse_reply_content({1, data}) do
-    <<ttl::32-unsigned, len::16-unsigned, rdata::binary>> = data
-    IO.inspect len
-    <<a::8, b::8, c::8, d::8>> = rdata
-    {:ok, ttl, {a, b, c, d}}
+  def parse_reply_content(data, ancount) do
+    parse_all_reply(data, [], ancount)
   end
 
-  def discard_request(<<0x00::8, _::32, _name::16, type::16, _class::16, data::binary>>) do
-    {type, data}
+  defp parse_all_reply(_data, acc, 0), do: {:ok, acc}
+
+  defp parse_all_reply(data, acc, ancount) do
+    <<_name::16, type::16, _class::16, ttl::32-unsigned, _len::16-unsigned, rdata::binary>> = data
+    <<a::8, b::8, c::8, d::8, rest::binary>> = rdata
+    parse_all_reply(rest, [{type, ttl, {a, b, c, d}} | acc], ancount - 1)
   end
 
-  def discard_request(<<_len::8, data::binary>>) do
-    discard_request(data)
+
+  def discard_request(<<0x00::8, _::32, data::binary>>) do
+    data
+  end
+
+  def discard_request(<<len::8, data::binary>>) do
+    <<_::len*8, remain::binary>> = data
+    IO.puts("len = #{len}")
+    discard_request(remain)
   end
 
   ### INTERNAL ###
