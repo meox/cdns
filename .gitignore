@@ -23,3 +23,7 @@ erl_crash.dump
 cdns-*.tar
 
 .elixir_ls
+.directory
+
+# pcap test example
+*.pcap

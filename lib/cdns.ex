@@ -1,14 +1,19 @@
 defmodule CDNS do
   @moduledoc """
-  Documentation for Cdns.
+  Client DNS is a simple Elixir lib
+  to query a DNS server
   """
 
-  @dns_server {1, 1, 1, 1}
+  @dns_server {{1, 1, 1, 1}, 53}
 
-  def resolve(host) do
+  @spec resolve(String.t(), Keyword.t()) ::
+          {:ok, [any()]} | {:error, any()} | {:error, any(), String.t()}
+  def resolve(host, opts \\ [{:dns_server, @dns_server}]) do
+    {dns_server, dns_port} = Keyword.get(opts, :dns)
+
     with {:ok, socket} <- :gen_udp.open(0, [:binary, {:active, false}]),
          {id, data} <- query(host),
-         :ok <- :gen_udp.send(socket, @dns_server, 53, data),
+         :ok <- :gen_udp.send(socket, dns_server, dns_port, data),
          {:ok, data} <- read_reply(socket, id) do
       {:ok, data}
     else
@@ -23,12 +28,12 @@ defmodule CDNS do
     end
   end
 
-  def query(host) do
+  ##### PRIVATE #####
+
+  defp query(host) do
     id = :rand.uniform(255)
     {id, query_header(id) <> question(host)}
   end
-
-  ##### PRIVATE #####
 
   @spec query_header(integer()) :: binary()
   defp query_header(id) when is_integer(id) do
@@ -56,8 +61,8 @@ defmodule CDNS do
   end
 
   @spec question(String.t()) :: binary()
-  def question(host) do
-    qname(host) <>
+  defp question(host) do
+    Utils.qname(host) <>
       <<
         0::8,
         # A record
@@ -81,21 +86,21 @@ defmodule CDNS do
 
   ### PARSE REPLY ###
 
-  def parse_query_reply(
-        id,
-        <<
-          0xAA::8,
-          id::8,
-          1::1,
-          _::11,
-          0::4-integer,
-          _qdcount::16,
-          ancount::16,
-          _nscount::16,
-          _arcount::16,
-          rest::binary
-        >>
-      ) do
+  defp parse_query_reply(
+         id,
+         <<
+           0xAA::8,
+           id::8,
+           1::1,
+           _::11,
+           0::4-integer,
+           _qdcount::16,
+           ancount::16,
+           _nscount::16,
+           _arcount::16,
+           rest::binary
+         >>
+       ) do
     IO.puts("reply #{ancount}")
 
     rest
@@ -103,11 +108,12 @@ defmodule CDNS do
     |> parse_reply_content(ancount)
   end
 
-  def parse_query_reply(id, <<0xAA::8, id::8, 1::1, _::11, rcode::4-integer, _rest::binary>>) do
+  defp parse_query_reply(id, <<0xAA::8, id::8, 1::1, _::11, rcode::4-integer, _rest::binary>>) do
     {:error, :bad_query, "rcode: #{rcode}"}
   end
 
-  def parse_reply_content(data, ancount) do
+  @spec parse_reply_content(binary(), integer()) :: {:ok, [any()]}
+  defp parse_reply_content(data, ancount) do
     parse_all_reply(data, [], ancount)
   end
 
@@ -119,34 +125,13 @@ defmodule CDNS do
     parse_all_reply(rest, [{type, ttl, {a, b, c, d}} | acc], ancount - 1)
   end
 
-
-  def discard_request(<<0x00::8, _::32, data::binary>>) do
+  defp discard_request(<<0x00::8, _::32, data::binary>>) do
     data
   end
 
-  def discard_request(<<len::8, data::binary>>) do
+  defp discard_request(<<len::8, data::binary>>) do
     <<_::len*8, remain::binary>> = data
     IO.puts("len = #{len}")
     discard_request(remain)
-  end
-
-  ### INTERNAL ###
-
-  @doc """
-  Convert a hostname to a qname object.
-
-  ##    Examples
-
-        iex> CDNS.qname("example.com")
-        <<7, 101, 120, 97, 109, 112, 108, 101, 3, 99, 111, 109>>
-  """
-  def qname(host) do
-    host
-    |> String.split(".")
-    |> Enum.map(fn section -> URI.encode(section) end)
-    |> Enum.map_join(fn section ->
-      [String.length(section) | String.to_charlist(section)]
-      |> Enum.map_join(fn x -> <<x::8-big>> end)
-    end)
   end
 end
