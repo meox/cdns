@@ -134,13 +134,13 @@ defmodule CDNS do
     <<name::16, type::16, _class::16, ttl::32-unsigned, len::16-unsigned, rdata::binary>> = data
     IO.puts("type = #{type}, name = #{name}")
     v = parse_single_reply(type, rdata)
-    rest = binary_part(rdata, len, bit_size(rdata) - len)
+    rest = binary_part(rdata, len, byte_size(rdata) - len)
     parse_all_reply(rest, [{type, ttl, v} | acc], ancount - 1)
   end
 
   def parse_single_reply(@type_a, rdata) do
     <<a::8, b::8, c::8, d::8, _rest::binary>> = rdata
-    {a, b, c, d}
+    "#{a}.#{b}.#{c}.#{d}"
   end
 
   def parse_single_reply(_type, _rdata) do
