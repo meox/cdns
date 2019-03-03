@@ -1,6 +1,6 @@
 # C-DNS
 
-**TODO: Add description**
+Micro DNS client library written in Elixir for internal project
 
 ## Installation
 
