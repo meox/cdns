@@ -1,6 +1,7 @@
 # C-DNS
 
 Micro DNS client library written in Elixir for internal project
+https://travis-ci.com/meox/cdns.svg?branch=master
 
 ## Installation
 
@@ -18,4 +19,3 @@ end
 Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
 and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
 be found at [https://hexdocs.pm/cdns](https://hexdocs.pm/cdns).
-
