@@ -1,7 +1,8 @@
 # C-DNS
 
 Micro DNS client library written in Elixir for internal project
-https://travis-ci.com/meox/cdns.svg?branch=master
+[https://travis-ci.com/meox/cdns.svg?branch=master
+]([![Build Status](https://travis-ci.com/meox/cdns.svg?branch=master)](https://travis-ci.com/meox/cdns))
 
 ## Installation
 
