@@ -1,7 +1,14 @@
 defmodule CDNS do
   @moduledoc """
   Client DNS is a simple Elixir lib
-  to query a DNS server
+  to query a DNS server.
+
+  Ref:
+    - https://routley.io/tech/2017/12/28/hand-writing-dns-messages.html
+    - http://www.zytrax.com/books/dns/ch15/
+
+  Dump PCAP for test:
+    sudo tcpdump -w dns_test.pcap
   """
 
   @dns_server {{1, 1, 1, 1}, 53}
@@ -9,7 +16,7 @@ defmodule CDNS do
   @spec resolve(String.t(), Keyword.t()) ::
           {:ok, [any()]} | {:error, any()} | {:error, any(), String.t()}
   def resolve(host, opts \\ [{:dns_server, @dns_server}]) do
-    {dns_server, dns_port} = Keyword.get(opts, :dns)
+    {dns_server, dns_port} = Keyword.get(opts, :dns_server)
 
     with {:ok, socket} <- :gen_udp.open(0, [:binary, {:active, false}]),
          {id, data} <- query(host),
@@ -38,6 +45,7 @@ defmodule CDNS do
   @spec query_header(integer()) :: binary()
   defp query_header(id) when is_integer(id) do
     <<
+      # identifier: 0xAA + random integer
       0xAA::8,
       id::8,
       # QR
