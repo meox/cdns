@@ -13,6 +13,9 @@ defmodule CDNS do
 
   @dns_server {{1, 1, 1, 1}, 53}
 
+  @type_a 1
+  @type_cname 5
+
   @spec resolve(String.t(), Keyword.t()) ::
           {:ok, [any()]} | {:error, any()} | {:error, any(), String.t()}
   def resolve(host, opts \\ [{:dns_server, @dns_server}]) do
@@ -128,9 +131,20 @@ defmodule CDNS do
   defp parse_all_reply(_data, acc, 0), do: {:ok, acc}
 
   defp parse_all_reply(data, acc, ancount) do
-    <<_name::16, type::16, _class::16, ttl::32-unsigned, _len::16-unsigned, rdata::binary>> = data
-    <<a::8, b::8, c::8, d::8, rest::binary>> = rdata
-    parse_all_reply(rest, [{type, ttl, {a, b, c, d}} | acc], ancount - 1)
+    <<name::16, type::16, _class::16, ttl::32-unsigned, len::16-unsigned, rdata::binary>> = data
+    IO.puts("type = #{type}, name = #{name}")
+    v = parse_single_reply(type, rdata)
+    rest = binary_part(rdata, len, bit_size(rdata) - len)
+    parse_all_reply(rest, [{type, ttl, v} | acc], ancount - 1)
+  end
+
+  def parse_single_reply(@type_a, rdata) do
+    <<a::8, b::8, c::8, d::8, _rest::binary>> = rdata
+    {a, b, c, d}
+  end
+
+  def parse_single_reply(_type, _rdata) do
+    nil
   end
 
   defp discard_request(<<0x00::8, _::32, data::binary>>) do
@@ -138,8 +152,9 @@ defmodule CDNS do
   end
 
   defp discard_request(<<len::8, data::binary>>) do
-    <<_::len*8, remain::binary>> = data
     IO.puts("len = #{len}")
-    discard_request(remain)
+    data
+    |> binary_part(len, byte_size(data) - len)
+    |> discard_request()
   end
 end
