@@ -1,4 +1,4 @@
-# Cdns
+# C-DNS
 
 **TODO: Add description**
 
