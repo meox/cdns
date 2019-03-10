@@ -111,11 +111,14 @@ defmodule CDNS do
            rest::binary
          >> = orig
        ) do
-    IO.puts("reply #{ancount}")
-
+    # IO.puts("reply #{ancount}")
     rest
     |> discard_request()
     |> parse_reply_content(orig, ancount)
+  end
+
+  defp parse_query_reply(id, <<0xAA::8, id::8, 1::1, _::11, 3::4-integer, _rest::binary>>) do
+    {:error, :name_error, "the domain name referenced in the query does not exist"}
   end
 
   defp parse_query_reply(id, <<0xAA::8, id::8, 1::1, _::11, rcode::4-integer, _rest::binary>>) do
