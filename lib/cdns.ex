@@ -15,9 +15,6 @@ defmodule CDNS do
 
   @dns_server {{8, 8, 8, 8}, 53}
 
-  @type_a 1
-  @type_cname 5
-
   @spec resolve(String.t(), Keyword.t()) ::
           {:ok, [any()]} | {:error, any()} | {:error, any(), String.t()}
   def resolve(host, opts \\ [{:dns_server, @dns_server}]) do
@@ -156,17 +153,17 @@ defmodule CDNS do
     )
   end
 
-  def parse_single_reply(@type_a, _orig, rdata) do
+  defp parse_single_reply(1, _orig, rdata) do
     <<a::8, b::8, c::8, d::8>> = rdata
     "#{a}.#{b}.#{c}.#{d}"
   end
 
-  def parse_single_reply(@type_cname, orig, rdata) do
+  defp parse_single_reply(5, orig, rdata) do
     <<_::2, ptr::14>> = rdata
     Utils.to_name(orig, ptr)
   end
 
-  def parse_single_reply(_type, _rdata) do
+  defp parse_single_reply(_type, _orig, _rdata) do
     nil
   end
 
@@ -182,6 +179,13 @@ defmodule CDNS do
   end
 
   defp resolve_type(1), do: :a
+  defp resolve_type(2), do: :ns
   defp resolve_type(5), do: :cname
+  defp resolve_type(6), do: :soa
+  defp resolve_type(11), do: :wks
+  defp resolve_type(12), do: :ptr
+  defp resolve_type(15), do: :mx
+  defp resolve_type(28), do: :aaaa
+  defp resolve_type(33), do: :srv
   defp resolve_type(_), do: :unknown
 end
