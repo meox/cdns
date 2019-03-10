@@ -11,7 +11,7 @@ defmodule CDNS do
     sudo tcpdump -w dns_test.pcap
   """
 
-  @dns_server {{1, 1, 1, 1}, 53}
+  @dns_server {{8, 8, 8, 8}, 53}
 
   @type_a 1
   @type_cname 5
@@ -110,37 +110,47 @@ defmodule CDNS do
            _nscount::16,
            _arcount::16,
            rest::binary
-         >>
+         >> = orig
        ) do
     IO.puts("reply #{ancount}")
 
     rest
     |> discard_request()
-    |> parse_reply_content(ancount)
+    |> parse_reply_content(orig, ancount)
   end
 
   defp parse_query_reply(id, <<0xAA::8, id::8, 1::1, _::11, rcode::4-integer, _rest::binary>>) do
     {:error, :bad_query, "rcode: #{rcode}"}
   end
 
-  @spec parse_reply_content(binary(), integer()) :: {:ok, [any()]}
-  defp parse_reply_content(data, ancount) do
-    parse_all_reply(data, [], ancount)
+  @spec parse_reply_content(binary(), binary(), integer()) :: {:ok, [any()]}
+  defp parse_reply_content(data, orig, ancount) do
+    parse_all_reply(orig, data, [], ancount)
   end
 
-  defp parse_all_reply(_data, acc, 0), do: {:ok, acc}
+  defp parse_all_reply(_orig, _data, acc, 0), do: {:ok, acc}
 
-  defp parse_all_reply(data, acc, ancount) do
+  defp parse_all_reply(orig, data, acc, ancount) do
     <<name::16, type::16, _class::16, ttl::32-unsigned, len::16-unsigned, rdata::binary>> = data
-    IO.puts("type = #{type}, name = #{name}")
-    v = parse_single_reply(type, rdata)
+    # IO.puts("type = #{type}, name = #{name}, len = #{len}")
+    v = parse_single_reply(type, orig, binary_part(rdata, 0, len))
     rest = binary_part(rdata, len, byte_size(rdata) - len)
-    parse_all_reply(rest, [{type, ttl, v} | acc], ancount - 1)
+    parse_all_reply(
+      orig,
+      rest,
+      [{resolve_type(type), ttl, v} | acc],
+      ancount - 1
+    )
   end
 
-  def parse_single_reply(@type_a, rdata) do
-    <<a::8, b::8, c::8, d::8, _rest::binary>> = rdata
+  def parse_single_reply(@type_a, _orig, rdata) do
+    <<a::8, b::8, c::8, d::8>> = rdata
     "#{a}.#{b}.#{c}.#{d}"
+  end
+
+  def parse_single_reply(@type_cname, orig, rdata) do
+    <<_::2, ptr::14>> = rdata
+    Utils.to_name(orig, ptr)
   end
 
   def parse_single_reply(_type, _rdata) do
@@ -152,9 +162,14 @@ defmodule CDNS do
   end
 
   defp discard_request(<<len::8, data::binary>>) do
-    IO.puts("len = #{len}")
+    # IO.puts("len = #{len}")
     data
     |> binary_part(len, byte_size(data) - len)
     |> discard_request()
   end
+
+  defp resolve_type(1), do: :a
+  defp resolve_type(5), do: :cname
+  defp resolve_type(_), do: :unknown
 end
+
