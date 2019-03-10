@@ -11,6 +11,8 @@ defmodule CDNS do
     sudo tcpdump -w dns_test.pcap
   """
 
+  alias CDNS.Entry
+
   @dns_server {{8, 8, 8, 8}, 53}
 
   @type_a 1
@@ -142,7 +144,7 @@ defmodule CDNS do
       orig,
       rest,
       [
-        %CDNS.Entry{
+        %Entry{
           name: Utils.to_name(orig, name),
           type: resolve_type(type),
           ttl: ttl,
