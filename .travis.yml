@@ -4,9 +4,9 @@ language: elixir
 matrix:
   include:
     # Elixir 1.7 with OTP 20 & 21
-    - elixir: 1.7.0
+    - elixir: 1.7.3
       otp_release: 20.0
-    - elixir: 1.7.0
+    - elixir: 1.7.3
       otp_release: 21.0
 
     # Elixir 1.8 with OTP 20 & 21
