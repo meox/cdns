@@ -133,10 +133,13 @@ defmodule CDNS do
   defp parse_all_reply(_orig, _data, acc, 0), do: {:ok, acc}
 
   defp parse_all_reply(orig, data, acc, ancount) do
-    <<_::2, name::14, type::16, _class::16, ttl::32-unsigned, len::16-unsigned, rdata::binary>> = data
+    <<_::2, name::14, type::16, _class::16, ttl::32-unsigned, len::16-unsigned, rdata::binary>> =
+      data
+
     # IO.puts("type = #{type}, name = #{name}, len = #{len}")
     v = parse_single_reply(type, orig, binary_part(rdata, 0, len))
     rest = binary_part(rdata, len, byte_size(rdata) - len)
+
     parse_all_reply(
       orig,
       rest,
@@ -147,8 +150,7 @@ defmodule CDNS do
           ttl: ttl,
           value: v
         }
-        |
-        acc
+        | acc
       ],
       ancount - 1
     )
@@ -183,4 +185,3 @@ defmodule CDNS do
   defp resolve_type(5), do: :cname
   defp resolve_type(_), do: :unknown
 end
-

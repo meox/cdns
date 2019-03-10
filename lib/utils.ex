@@ -46,6 +46,7 @@ defmodule Utils do
       |> binary_part(index + 1, len)
       |> String.codepoints()
       |> Enum.join("")
+
     compose_name(orig, index + len + 1, [token | acc])
   end
 end
