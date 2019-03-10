@@ -18,3 +18,4 @@ matrix:
 sudo: false
 script:
   - mix test
+  - mix dialyzer
